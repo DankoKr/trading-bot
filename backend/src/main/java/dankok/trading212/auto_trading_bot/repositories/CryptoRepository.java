@@ -14,7 +14,7 @@ public class CryptoRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void savePrice(String symbol, double price) {
+    public void savePrice(String symbol, double price) { // not used anymore
         jdbcTemplate.update(
             "INSERT INTO crypto_prices (symbol, price, timestamp) VALUES (?, ?, ?)",
             symbol,

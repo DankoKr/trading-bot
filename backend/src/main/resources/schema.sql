@@ -1,22 +1,26 @@
-CREATE TABLE IF NOT EXISTS crypto_prices (
+CREATE TABLE IF NOT EXISTS accounts (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    symbol VARCHAR(10) NOT NULL,
-    price DECIMAL(20, 10) NOT NULL,
-    timestamp DATETIME NOT NULL
+    balance DECIMAL(20, 10) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS trade_history (
+CREATE TABLE IF NOT EXISTS holdings (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    account_id INT NOT NULL,
     symbol VARCHAR(10) NOT NULL,
-    trade_type VARCHAR(10) NOT NULL, -- 'BUY' or 'SELL'
+    quantity DECIMAL(20, 10) NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+
+CREATE TABLE IF NOT EXISTS trades (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    timestamp DATETIME NOT NULL,
+    account_id INT NOT NULL,
+    action VARCHAR(4) NOT NULL, -- 'BUY' or 'SELL'
+    symbol VARCHAR(10) NOT NULL,
     quantity DECIMAL(20, 10) NOT NULL,
     price DECIMAL(20, 10) NOT NULL,
     profit_loss DECIMAL(20, 10),
-    timestamp DATETIME NOT NULL
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
-CREATE TABLE IF NOT EXISTS account_balance (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    balance DECIMAL(20, 10) NOT NULL,
-    timestamp DATETIME NOT NULL
-);
+INSERT INTO accounts (balance) VALUES (1000.00);

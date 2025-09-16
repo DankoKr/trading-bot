@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class CryptoDataService {
@@ -17,8 +19,9 @@ public class CryptoDataService {
     }
 
     @SuppressWarnings("unchecked")
-    public Map<String, Object> fetchAllPrices() {
-        String relativeUrl = "/simple/price?ids=bitcoin,ethereum,solana,dogecoin&vs_currencies=usd";
+    public Map<String, Object> fetchPrices(String... coinIds) {
+        String ids = String.join(",", coinIds);
+        String relativeUrl = String.format("/simple/price?ids=%s&vs_currencies=usd", ids);
         try {
             return (Map<String, Object>) coinGeckoRestClient.get()
                     .uri(relativeUrl)
@@ -30,19 +33,24 @@ public class CryptoDataService {
         }
     }
 
-    public double fetchBitcoinPrice() {
-        String relativeUrl = "/simple/price?ids=bitcoin&vs_currencies=usd";
-
+    @SuppressWarnings("unchecked")
+    public List<Double> fetchHistoricalPrices(String coinId, int days) {
+        String relativeUrl = String.format("/coins/%s/market_chart?vs_currency=usd&days=%d", coinId, days);
         try {
-            Map<String, Map<String, Double>> response = (Map<String, Map<String, Double>>) coinGeckoRestClient.get()
+            Map<String, Object> response = coinGeckoRestClient.get()
                     .uri(relativeUrl)
                     .retrieve()
                     .body(Map.class);
 
-            return response.get("bitcoin").get("usd");
+            if (response != null && response.containsKey("prices")) {
+                List<List<Number>> pricesData = (List<List<Number>>) response.get("prices");
+                return pricesData.stream()
+                        .map(dataPoint -> dataPoint.get(1).doubleValue())
+                        .collect(Collectors.toList());
+            }
         } catch (Exception e) {
-            System.err.println("Error fetching crypto price: " + e.getMessage());
-            return 0.0;
+            System.err.println("Error fetching historical crypto prices for " + coinId + ": " + e.getMessage());
         }
+        return List.of();
     }
 }
