@@ -3,8 +3,11 @@ package dankok.trading212.auto_trading_bot.repositories;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Repository
 public class CryptoRepository {
@@ -14,6 +17,13 @@ public class CryptoRepository {
     public CryptoRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
+
+    public void savePrice(String symbol, double price) {
+    jdbcTemplate.update(
+        "INSERT INTO crypto_prices (symbol, price) VALUES (?, ?)",
+        symbol, price
+    );
+}
 
     public void updateAccountBalance(int accountId, double amount) {
         jdbcTemplate.update("UPDATE accounts SET balance = balance + ? WHERE id = ?", amount, accountId);
@@ -64,5 +74,29 @@ public class CryptoRepository {
             "INSERT INTO trades (timestamp, account_id, action, symbol, quantity, price, profit_loss) VALUES (?, ?, ?, ?, ?, ?, ?)",
             timestamp, accountId, action, symbol, quantity, price, profitLoss
         );
+    }
+
+    public Double getAccountBalance(int accountId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT balance FROM accounts WHERE id = ?",
+                    Double.class, accountId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+    
+    public List<Map<String, Object>> getTradeHistory(int accountId) {
+        return jdbcTemplate.queryForList(
+            "SELECT timestamp, action, symbol, quantity, price, profit_loss FROM trades WHERE account_id = ? ORDER BY timestamp DESC LIMIT 100",
+            accountId
+        );
+    }
+
+    @Transactional
+    public void resetAccount(int accountId, double initialBalance) {
+        jdbcTemplate.update("UPDATE accounts SET balance = ? WHERE id = ?", initialBalance, accountId);
+        jdbcTemplate.update("DELETE FROM holdings WHERE account_id = ?", accountId);
+        jdbcTemplate.update("DELETE FROM trades WHERE account_id = ?", accountId);
     }
 }

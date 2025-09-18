@@ -3,7 +3,9 @@ package dankok.trading212.auto_trading_bot.services;
 import dankok.trading212.auto_trading_bot.dtos.CoinAnalysis;
 import dankok.trading212.auto_trading_bot.dtos.TradeResult;
 import dankok.trading212.auto_trading_bot.dtos.TradingAnalysisResult;
+import dankok.trading212.auto_trading_bot.enums.TradeAction;
 import dankok.trading212.auto_trading_bot.enums.TradingMode;
+import dankok.trading212.auto_trading_bot.enums.TradingSignal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,15 +18,17 @@ public class TradingBotService {
     private final CryptoDataService cryptoDataService;
     private final TradeExecutorService tradeExecutorService;
     private final BotStateService botStateService;
+    private final BacktestService backtestService;
     private static final int SHORT_TERM_PERIOD = 10;
     private static final int LONG_TERM_PERIOD = 50;
 
     @Autowired
     public TradingBotService(CryptoDataService cryptoDataService, TradeExecutorService tradeExecutorService,
-                           BotStateService botStateService) {
+                           BotStateService botStateService, BacktestService backtestService) {
         this.cryptoDataService = cryptoDataService;
         this.tradeExecutorService = tradeExecutorService;
         this.botStateService = botStateService;
+        this.backtestService = backtestService;
     }
 
     public TradingAnalysisResult executeTradingLogic(List<String> coinIds, TradingMode mode) {
@@ -57,11 +61,45 @@ public class TradingBotService {
         return new TradingAnalysisResult(analyses, summary, true);
     }
 
+    public TradingAnalysisResult runTrainingOnHistoricalData(List<String> coinIds, int days) {
+        List<CoinAnalysis> analyses = new ArrayList<>();
+        
+        for (String coinId : coinIds) {
+            var backtestResult = backtestService.runBacktest(coinId, days, 1000.0);
+            
+            CoinAnalysis analysis = new CoinAnalysis(
+                coinId, 
+                0,
+                0,
+                0,
+                TradingSignal.BACKTEST.name(),
+                backtestResult.getSummary()
+            );
+            
+            TradeResult summaryResult = new TradeResult(
+                backtestResult.isSuccess(),
+                TradeAction.BACKTEST_SUMMARY.name(),
+                backtestResult.getTotalTrades(),
+                0,
+                backtestResult.getTotalReturn(),
+                String.format("Return: %.2f%%, Trades: %d", 
+                    backtestResult.getTotalReturnPercentage(), 
+                    backtestResult.getTotalTrades())
+            );
+            analysis.setTradeResult(summaryResult);
+            analyses.add(analysis);
+        }
+        
+        String summary = String.format("[HISTORICAL TRAINING] Analyzed %d coins over %d days", 
+            coinIds.size(), days);
+        return new TradingAnalysisResult(analyses, summary, true);
+    }
+
     private CoinAnalysis analyzeCoin(String coinId, TradingMode mode) {
         List<Double> historicalPrices = cryptoDataService.fetchHistoricalPrices(coinId, LONG_TERM_PERIOD);
 
         if (historicalPrices.size() < LONG_TERM_PERIOD) {
-            return new CoinAnalysis(coinId, 0, 0, 0, "NONE",
+            return new CoinAnalysis(coinId, 0, 0, 0, TradingSignal.NONE.name(),
                     "Not enough historical data (need " + LONG_TERM_PERIOD + " days, got " + historicalPrices.size() + ")");
         }
 
@@ -69,45 +107,45 @@ public class TradingBotService {
         double longTermSMA = calculateSMA(historicalPrices, LONG_TERM_PERIOD);
         double currentPrice = historicalPrices.get(historicalPrices.size() - 1);
 
-        String signal;
+        TradingSignal signal;
         String status = "Analysis completed - " + mode.name() + " mode";
         CoinAnalysis analysis;
 
         if (shortTermSMA > longTermSMA) {
-            signal = "BUY";
-            analysis = new CoinAnalysis(coinId, currentPrice, shortTermSMA, longTermSMA, signal, status);
+            signal = TradingSignal.BUY;
+            analysis = new CoinAnalysis(coinId, currentPrice, shortTermSMA, longTermSMA, signal.name(), status);
             
             if (mode == TradingMode.TRADING && botStateService.isActive()) {
                 TradeResult tradeResult = tradeExecutorService.executeBuyTrade(1, coinId, currentPrice, 10.00);
                 analysis.setTradeResult(tradeResult);
             } else if (mode == TradingMode.TRAINING) {
-                TradeResult simulatedResult = new TradeResult(true, "BUY", 10.00/currentPrice, 
+                TradeResult simulatedResult = new TradeResult(true, TradeAction.BUY.name(), 10.00/currentPrice, 
                     currentPrice, 10.00, "Simulated buy trade (training mode)");
                 analysis.setTradeResult(simulatedResult);
             } else {
-                TradeResult heldResult = new TradeResult(false, "BUY", 0, currentPrice, 0, 
+                TradeResult heldResult = new TradeResult(false, TradeAction.BUY.name(), 0, currentPrice, 0, 
                     "Trade signal generated but bot is on hold");
                 analysis.setTradeResult(heldResult);
             }
         } else if (shortTermSMA < longTermSMA) {
-            signal = "SELL";
-            analysis = new CoinAnalysis(coinId, currentPrice, shortTermSMA, longTermSMA, signal, status);
+            signal = TradingSignal.SELL;
+            analysis = new CoinAnalysis(coinId, currentPrice, shortTermSMA, longTermSMA, signal.name(), status);
             
             if (mode == TradingMode.TRADING && botStateService.isActive()) {
                 TradeResult tradeResult = tradeExecutorService.executeSellTrade(1, coinId, currentPrice);
                 analysis.setTradeResult(tradeResult);
             } else if (mode == TradingMode.TRAINING) {
-                TradeResult simulatedResult = new TradeResult(true, "SELL", 1.0, 
+                TradeResult simulatedResult = new TradeResult(true, TradeAction.SELL.name(), 1.0, 
                     currentPrice, currentPrice, "Simulated sell trade (training mode)");
                 analysis.setTradeResult(simulatedResult);
             } else {
-                TradeResult heldResult = new TradeResult(false, "SELL", 0, currentPrice, 0, 
+                TradeResult heldResult = new TradeResult(false, TradeAction.SELL.name(), 0, currentPrice, 0, 
                     "Trade signal generated but bot is on hold");
                 analysis.setTradeResult(heldResult);
             }
         } else {
-            signal = "HOLD";
-            analysis = new CoinAnalysis(coinId, currentPrice, shortTermSMA, longTermSMA, signal, 
+            signal = TradingSignal.HOLD;
+            analysis = new CoinAnalysis(coinId, currentPrice, shortTermSMA, longTermSMA, signal.name(), 
                 "No trading signal generated - " + mode.name() + " mode");
         }
 

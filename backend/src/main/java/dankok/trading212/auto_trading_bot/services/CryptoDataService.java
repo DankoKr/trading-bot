@@ -2,6 +2,7 @@ package dankok.trading212.auto_trading_bot.services;
 
 import dankok.trading212.auto_trading_bot.dtos.CryptoPriceResponse;
 import dankok.trading212.auto_trading_bot.dtos.HistoricalPriceResponse;
+import dankok.trading212.auto_trading_bot.repositories.CryptoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -15,10 +16,12 @@ import java.util.stream.Collectors;
 public class CryptoDataService {
 
     private final RestClient coinGeckoRestClient;
+    private final CryptoRepository cryptoRepository;
 
     @Autowired
-    public CryptoDataService(RestClient coinGeckoRestClient) {
+    public CryptoDataService(RestClient coinGeckoRestClient, CryptoRepository cryptoRepository) {
         this.coinGeckoRestClient = coinGeckoRestClient;
+        this.cryptoRepository = cryptoRepository;
     }
 
     public CryptoPriceResponse fetchPrices(String... coinIds) {
@@ -40,6 +43,8 @@ public class CryptoDataService {
                         if (usdValue instanceof Number) {
                             Double price = ((Number) usdValue).doubleValue();
                             prices.put(coinId, price);
+                            
+                            cryptoRepository.savePrice(coinId, price);
                         }
                     }
                 }

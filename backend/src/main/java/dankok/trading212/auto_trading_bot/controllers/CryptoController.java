@@ -6,6 +6,7 @@ import dankok.trading212.auto_trading_bot.dtos.CryptoPriceResponse;
 import dankok.trading212.auto_trading_bot.dtos.HistoricalPriceResponse;
 import dankok.trading212.auto_trading_bot.dtos.TradingAnalysisResult;
 import dankok.trading212.auto_trading_bot.enums.TradingMode;
+import dankok.trading212.auto_trading_bot.services.AccountService;
 import dankok.trading212.auto_trading_bot.services.BacktestService;
 import dankok.trading212.auto_trading_bot.services.BotStateService;
 import dankok.trading212.auto_trading_bot.services.CryptoDataService;
@@ -17,8 +18,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 public class CryptoController {
@@ -27,14 +30,17 @@ public class CryptoController {
     private final CryptoDataService cryptoDataService;
     private final BacktestService backtestService;
     private final BotStateService botStateService;
+    private final AccountService accountService;
 
     @Autowired
     public CryptoController(TradingBotService tradingBotService, CryptoDataService cryptoDataService,
-                           BacktestService backtestService, BotStateService botStateService) {
+                           BacktestService backtestService, BotStateService botStateService,
+                           AccountService accountService) {
         this.tradingBotService = tradingBotService;
         this.cryptoDataService = cryptoDataService;
         this.backtestService = backtestService;
         this.botStateService = botStateService;
+        this.accountService = accountService;
     }
 
     @GetMapping("/")
@@ -98,12 +104,43 @@ public class CryptoController {
         );
     }
 
+    @PostMapping("/bot/reset")
+    public BotStatusResponse resetBot(@RequestParam(defaultValue = "1000.0") double initialBalance) {
+        boolean success = accountService.resetAccount(1, initialBalance);
+        
+        if (success) {
+            return new BotStatusResponse(
+                botStateService.getCurrentStatus(),
+                LocalDateTime.now(),
+                "Account reset to initial state",
+                String.format("Account reset with balance: $%.2f", initialBalance),
+                true
+            );
+        } else {
+            return new BotStatusResponse(
+                botStateService.getCurrentStatus(),
+                LocalDateTime.now(),
+                "Reset failed",
+                "Failed to reset account",
+                false
+            );
+        }
+    }
+
     @GetMapping("/backtest/{coinId}")
     public BacktestResult runBacktest(
             @PathVariable String coinId,
             @RequestParam(defaultValue = "365") int days,
             @RequestParam(defaultValue = "1000.0") double initialBalance) {
         return backtestService.runBacktest(coinId, days, initialBalance);
+    }
+
+    @GetMapping("/run-historical-training")
+    public TradingAnalysisResult runHistoricalTraining(
+            @RequestParam(defaultValue = "bitcoin,ethereum") String coins,
+            @RequestParam(defaultValue = "365") int days) {
+        List<String> coinIds = Arrays.asList(coins.split(","));
+        return tradingBotService.runTrainingOnHistoricalData(coinIds, days);
     }
 
     @GetMapping("/prices")
@@ -122,5 +159,16 @@ public class CryptoController {
             @PathVariable String coinId,
             @RequestParam(defaultValue = "30") int days) {
         return cryptoDataService.fetchHistoricalPricesWithMetadata(coinId, days);
+    }
+
+    // Hardcoded account ID for simplicity, also because there will be just one
+    @GetMapping("/account/balance")
+    public Double getAccountBalance() {
+        return accountService.getAccountBalance(1);
+    }
+
+    @GetMapping("/account/trades")
+    public List<Map<String, Object>> getTradeHistory() {
+        return accountService.getTradeHistory(1);
     }
 }

@@ -1,6 +1,7 @@
 package dankok.trading212.auto_trading_bot.services;
 
 import dankok.trading212.auto_trading_bot.dtos.TradeResult;
+import dankok.trading212.auto_trading_bot.enums.TradeAction;
 import dankok.trading212.auto_trading_bot.repositories.CryptoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,13 +34,13 @@ public class TradeExecutorService {
                 cryptoRepository.insertHolding(accountId, symbol, quantity);
             }
 
-            cryptoRepository.insertTrade(LocalDateTime.now(), accountId, "BUY", symbol, quantity, currentPrice, null);
+            cryptoRepository.insertTrade(LocalDateTime.now(), accountId, TradeAction.BUY.name(), symbol, quantity, currentPrice, null);
 
-            return new TradeResult(true, "BUY", quantity, currentPrice, amountToInvest, 
+            return new TradeResult(true, TradeAction.BUY.name(), quantity, currentPrice, amountToInvest, 
                 String.format("Successfully bought %.6f %s for $%.2f", quantity, symbol, amountToInvest));
                 
         } catch (Exception e) {
-            return new TradeResult(false, "BUY", 0, currentPrice, 0, 
+            return new TradeResult(false, TradeAction.BUY.name(), 0, currentPrice, 0, 
                 "Failed to execute buy trade: " + e.getMessage());
         }
     }
@@ -50,7 +51,7 @@ public class TradeExecutorService {
             Double quantityToSell = cryptoRepository.getHoldingQuantity(accountId, symbol);
 
             if (quantityToSell == null || quantityToSell <= 0) {
-                return new TradeResult(false, "SELL", 0, currentPrice, 0, 
+                return new TradeResult(false, TradeAction.SELL.name(), 0, currentPrice, 0, 
                     "Cannot sell: No holdings for " + symbol + " in account " + accountId);
             }
 
@@ -58,13 +59,13 @@ public class TradeExecutorService {
 
             cryptoRepository.updateAccountBalance(accountId, saleValue);
             cryptoRepository.deleteHolding(accountId, symbol);
-            cryptoRepository.insertTrade(LocalDateTime.now(), accountId, "SELL", symbol, quantityToSell, currentPrice, null);
+            cryptoRepository.insertTrade(LocalDateTime.now(), accountId, TradeAction.SELL.name(), symbol, quantityToSell, currentPrice, null);
 
-            return new TradeResult(true, "SELL", quantityToSell, currentPrice, saleValue,
+            return new TradeResult(true, TradeAction.SELL.name(), quantityToSell, currentPrice, saleValue,
                 String.format("Successfully sold %.6f %s for $%.2f", quantityToSell, symbol, saleValue));
                 
         } catch (Exception e) {
-            return new TradeResult(false, "SELL", 0, currentPrice, 0, 
+            return new TradeResult(false, TradeAction.SELL.name(), 0, currentPrice, 0, 
                 "Failed to execute sell trade: " + e.getMessage());
         }
     }
