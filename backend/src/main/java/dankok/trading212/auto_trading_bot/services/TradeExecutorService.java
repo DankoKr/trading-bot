@@ -1,8 +1,8 @@
 package dankok.trading212.auto_trading_bot.services;
 
+import dankok.trading212.auto_trading_bot.dtos.TradeResult;
+import dankok.trading212.auto_trading_bot.repositories.CryptoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,57 +11,61 @@ import java.time.LocalDateTime;
 @Service
 public class TradeExecutorService {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final CryptoRepository cryptoRepository;
 
     @Autowired
-    public TradeExecutorService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public TradeExecutorService(CryptoRepository cryptoRepository) {
+        this.cryptoRepository = cryptoRepository;
     }
 
     @Transactional
-    public void executeBuyTrade(int accountId, String symbol, double currentPrice, double amountToInvest) {
-        double quantity = amountToInvest / currentPrice;
-
-        jdbcTemplate.update("UPDATE accounts SET balance = balance - ? WHERE id = ?", amountToInvest, accountId);
-
-        int count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM holdings WHERE account_id = ? AND symbol = ?", Integer.class, accountId, symbol);
-        
-        if (count > 0) {
-            jdbcTemplate.update("UPDATE holdings SET quantity = quantity + ? WHERE account_id = ? AND symbol = ?",
-                    quantity, accountId, symbol);
-        } else {
-            jdbcTemplate.update("INSERT INTO holdings (account_id, symbol, quantity) VALUES (?, ?, ?)",
-                    accountId, symbol, quantity);
-        }
-
-        jdbcTemplate.update("INSERT INTO trades (timestamp, account_id, action, symbol, quantity, price, profit_loss) VALUES (?, ?, 'BUY', ?, ?, ?, ?)",
-                LocalDateTime.now(), accountId, symbol, quantity, currentPrice, null);
-    }
-
-    @Transactional
-    public void executeSellTrade(int accountId, String symbol, double currentPrice) {
-        Double quantityToSell;
+    public TradeResult executeBuyTrade(int accountId, String symbol, double currentPrice, double amountToInvest) {
         try {
-            quantityToSell = jdbcTemplate.queryForObject(
-                    "SELECT quantity FROM holdings WHERE account_id = ? AND symbol = ?",
-                    Double.class, accountId, symbol);
-        } catch (EmptyResultDataAccessException e) {
-            System.err.println("Cannot sell: No holdings for " + symbol + " in account " + accountId);
-            return;
+            double quantity = amountToInvest / currentPrice;
+
+            cryptoRepository.updateAccountBalance(accountId, -amountToInvest);
+
+            int count = cryptoRepository.getHoldingsCount(accountId, symbol);
+            
+            if (count > 0) {
+                cryptoRepository.updateHoldingsQuantity(accountId, symbol, quantity);
+            } else {
+                cryptoRepository.insertHolding(accountId, symbol, quantity);
+            }
+
+            cryptoRepository.insertTrade(LocalDateTime.now(), accountId, "BUY", symbol, quantity, currentPrice, null);
+
+            return new TradeResult(true, "BUY", quantity, currentPrice, amountToInvest, 
+                String.format("Successfully bought %.6f %s for $%.2f", quantity, symbol, amountToInvest));
+                
+        } catch (Exception e) {
+            return new TradeResult(false, "BUY", 0, currentPrice, 0, 
+                "Failed to execute buy trade: " + e.getMessage());
         }
+    }
 
-        if (quantityToSell == null || quantityToSell <= 0) {
-            System.err.println("Cannot sell: No holdings for " + symbol + " in account " + accountId);
-            return;
+    @Transactional
+    public TradeResult executeSellTrade(int accountId, String symbol, double currentPrice) {
+        try {
+            Double quantityToSell = cryptoRepository.getHoldingQuantity(accountId, symbol);
+
+            if (quantityToSell == null || quantityToSell <= 0) {
+                return new TradeResult(false, "SELL", 0, currentPrice, 0, 
+                    "Cannot sell: No holdings for " + symbol + " in account " + accountId);
+            }
+
+            double saleValue = quantityToSell * currentPrice;
+
+            cryptoRepository.updateAccountBalance(accountId, saleValue);
+            cryptoRepository.deleteHolding(accountId, symbol);
+            cryptoRepository.insertTrade(LocalDateTime.now(), accountId, "SELL", symbol, quantityToSell, currentPrice, null);
+
+            return new TradeResult(true, "SELL", quantityToSell, currentPrice, saleValue,
+                String.format("Successfully sold %.6f %s for $%.2f", quantityToSell, symbol, saleValue));
+                
+        } catch (Exception e) {
+            return new TradeResult(false, "SELL", 0, currentPrice, 0, 
+                "Failed to execute sell trade: " + e.getMessage());
         }
-
-        double saleValue = quantityToSell * currentPrice;
-
-        jdbcTemplate.update("UPDATE accounts SET balance = balance + ? WHERE id = ?", saleValue, accountId);
-
-        jdbcTemplate.update("DELETE FROM holdings WHERE account_id = ? AND symbol = ?", accountId, symbol);
-
-        jdbcTemplate.update("INSERT INTO trades (timestamp, account_id, action, symbol, quantity, price, profit_loss) VALUES (?, ?, 'SELL', ?, ?, ?, ?)",
-                LocalDateTime.now(), accountId, symbol, quantityToSell, currentPrice, null);
     }
 }
