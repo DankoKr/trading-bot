@@ -90,6 +90,18 @@ class ApiService {
   async getHistoricalPrices(coinId, days = 30) {
     return this.get(`/historical/${coinId}?days=${days}`);
   }
+
+  async getAccountHoldings() {
+    return this.get('/account/holdings');
+  }
+
+  async getDetailedHoldings() {
+    return this.get('/account/holdings/detailed');
+  }
+
+  async getPortfolioSummary() {
+    return this.get('/account/portfolio/summary');
+  }
 }
 
 const apiService = new ApiService();

@@ -191,4 +191,43 @@ public class CryptoController {
     public List<Map<String, Object>> getTradeHistory() {
         return accountService.getTradeHistory(1);
     }
+
+    @GetMapping("/account/holdings")
+    public List<Map<String, Object>> getAccountHoldings() {
+        return accountService.getAccountHoldings(1);
+    }
+
+    @GetMapping("/account/holdings/detailed")
+    public List<Map<String, Object>> getDetailedHoldings() {
+        return accountService.getDetailedHoldings(1);
+    }
+
+    @GetMapping("/account/portfolio/summary")
+    public Map<String, Object> getPortfolioSummary() {
+        Map<String, Object> summary = new HashMap<>();
+        
+        try {
+            Double balance = accountService.getAccountBalance(1);
+            
+            List<Map<String, Object>> holdings = accountService.getDetailedHoldings(1);
+            
+            Double holdingsValue = holdings.stream()
+                .mapToDouble(holding -> ((Number) holding.getOrDefault("current_value", 0)).doubleValue())
+                .sum();
+            
+            Double totalPortfolioValue = balance + holdingsValue;
+            
+            summary.put("cash_balance", balance);
+            summary.put("holdings_value", holdingsValue);
+            summary.put("total_portfolio_value", totalPortfolioValue);
+            summary.put("holdings_count", holdings.size());
+            summary.put("holdings", holdings);
+            summary.put("timestamp", LocalDateTime.now());
+            
+        } catch (Exception e) {
+            summary.put("error", "Failed to calculate portfolio summary: " + e.getMessage());
+        }
+        
+        return summary;
+    }
 }

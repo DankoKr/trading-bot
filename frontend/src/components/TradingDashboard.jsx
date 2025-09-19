@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react';
 import PortfolioOverview from './PortfolioOverview';
 import TradeHistoryTable from './TradeHistoryTable';
+import HoldingsTable from './HoldingsTable';
 import BotControlPanel from './BotControlPanel';
 
 export default function TradingDashboard() {
   const [botStatus, setBotStatus] = useState(null);
   const portfolioRef = useRef();
   const tradesRef = useRef();
+  const holdingsRef = useRef();
 
   const handleBotStatusChange = (status) => {
     setBotStatus(status);
@@ -16,6 +18,9 @@ export default function TradingDashboard() {
     }
     if (tradesRef.current?.refreshData) {
       tradesRef.current.refreshData();
+    }
+    if (holdingsRef.current?.refreshData) {
+      holdingsRef.current.refreshData();
     }
   };
 
@@ -33,6 +38,7 @@ export default function TradingDashboard() {
 
         <BotControlPanel onStatusChange={handleBotStatusChange} />
         <PortfolioOverview ref={portfolioRef} />
+        <HoldingsTable ref={holdingsRef} />
         <TradeHistoryTable ref={tradesRef} />
       </div>
     </div>

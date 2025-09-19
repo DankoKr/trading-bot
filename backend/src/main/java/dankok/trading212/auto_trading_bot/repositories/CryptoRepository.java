@@ -93,6 +93,24 @@ public class CryptoRepository {
         );
     }
 
+    public List<Map<String, Object>> getAccountHoldings(int accountId) {
+        return jdbcTemplate.queryForList(
+            "SELECT symbol, quantity, created_at, updated_at FROM holdings WHERE account_id = ? AND quantity > 0 ORDER BY symbol",
+            accountId
+        );
+    }
+
+    public Map<String, Object> getHolding(int accountId, String symbol) {
+        try {
+            return jdbcTemplate.queryForMap(
+                "SELECT symbol, quantity, created_at, updated_at FROM holdings WHERE account_id = ? AND symbol = ?",
+                accountId, symbol
+            );
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @Transactional
     public void resetAccount(int accountId, double initialBalance) {
         jdbcTemplate.update("UPDATE accounts SET balance = ? WHERE id = ?", initialBalance, accountId);
