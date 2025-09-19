@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,6 +47,25 @@ public class CryptoController {
     @GetMapping("/")
     public String home() {
         return "Auto Trading Bot is running!";
+    }
+
+    @GetMapping("/api/status")
+    public Map<String, Object> getApiStatus() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("usingApiKey", cryptoDataService.isUsingApiKey());
+        status.put("apiKeyType", cryptoDataService.getApiKeyType());
+        status.put("timestamp", LocalDateTime.now());
+        
+        try {
+            CryptoPriceResponse testResponse = cryptoDataService.fetchPrices("bitcoin");
+            status.put("apiConnected", testResponse.isSuccess());
+            status.put("lastTestMessage", testResponse.isSuccess() ? "API working normally" : testResponse.getErrorMessage());
+        } catch (Exception e) {
+            status.put("apiConnected", false);
+            status.put("lastTestMessage", "API connection failed: " + e.getMessage());
+        }
+        
+        return status;
     }
 
     @GetMapping("/run-bot")

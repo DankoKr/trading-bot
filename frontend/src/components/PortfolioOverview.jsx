@@ -1,3 +1,4 @@
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import MetricCard from './MetricCard';
 import {
   TrendingUp,
@@ -5,6 +6,7 @@ import {
   DollarSign,
   Activity,
   Calendar,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -15,15 +17,74 @@ import {
   YAxis,
   Tooltip,
 } from 'recharts';
+import ApiService from '../services/api';
 
-export default function PortfolioOverview({ portfolioData }) {
-  const currentValue = portfolioData[portfolioData.length - 1]?.value || 0;
-  const previousValue = portfolioData[portfolioData.length - 2]?.value || 0;
+const PortfolioOverview = forwardRef((props, ref) => {
+  const [portfolioData, setPortfolioData] = useState([]);
+  const [currentBalance, setCurrentBalance] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchPortfolioData();
+    const interval = setInterval(fetchPortfolioData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchPortfolioData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const balance = await ApiService.getAccountBalance();
+      setCurrentBalance(balance || 0);
+      const trades = await ApiService.getTradeHistory();
+
+      const portfolioHistory = generatePortfolioHistory(trades, balance);
+      setPortfolioData(portfolioHistory);
+    } catch (error) {
+      console.error('Failed to fetch portfolio data:', error);
+      setError('Failed to load portfolio data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generatePortfolioHistory = (trades, currentBalance) => {
+    const initialBalance = 1000;
+    const data = [];
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+
+      const progress = (29 - i) / 29;
+      const value =
+        initialBalance + (currentBalance - initialBalance) * progress;
+
+      data.push({
+        date: date.toISOString().split('T')[0],
+        value: Math.max(0, value),
+      });
+    }
+
+    return data;
+  };
+
+  const currentValue =
+    portfolioData.length > 0
+      ? portfolioData[portfolioData.length - 1]?.value || 0
+      : currentBalance;
+  const previousValue =
+    portfolioData.length > 1
+      ? portfolioData[portfolioData.length - 2]?.value || 0
+      : currentBalance;
   const dailyChange = currentValue - previousValue;
   const dailyChangePercent =
     previousValue !== 0 ? (dailyChange / previousValue) * 100 : 0;
 
-  const initialValue = portfolioData[0]?.value || 0;
+  const initialValue =
+    portfolioData.length > 0 ? portfolioData[0]?.value || 1000 : 1000;
   const totalReturn = currentValue - initialValue;
   const totalReturnPercent =
     initialValue !== 0 ? (totalReturn / initialValue) * 100 : 0;
@@ -40,6 +101,37 @@ export default function PortfolioOverview({ portfolioData }) {
   const formatPercent = (percent) => {
     return `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
   };
+
+  useImperativeHandle(ref, () => ({
+    refreshData: fetchPortfolioData,
+  }));
+
+  if (loading && portfolioData.length === 0) {
+    return (
+      <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
+        <div className='flex justify-center items-center h-40'>
+          <RefreshCw className='w-6 h-6 animate-spin text-blue-600' />
+          <span className='ml-2 text-gray-600'>Loading portfolio data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
+        <div className='flex justify-center items-center h-40 text-red-600'>
+          <span>{error}</span>
+          <button
+            onClick={fetchPortfolioData}
+            className='ml-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700'
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6'>
@@ -81,9 +173,9 @@ export default function PortfolioOverview({ portfolioData }) {
           subtitleClass={totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}
         />
         <MetricCard
-          title='Period'
-          value='15d'
-          subtitle='Sep 1-15, 2024'
+          title='Account Balance'
+          value={formatCurrency(currentBalance)}
+          subtitle='Available Cash'
           icon={<Calendar className='w-6 h-6 text-purple-600' />}
           iconBg='bg-purple-100'
         />
@@ -95,17 +187,11 @@ export default function PortfolioOverview({ portfolioData }) {
             Portfolio Performance
           </h2>
           <div className='flex gap-2'>
-            <button className='px-3 py-1 text-sm rounded-md bg-blue-100 text-blue-700 font-medium'>
-              15D
-            </button>
-            <button className='px-3 py-1 text-sm rounded-md text-gray-600 hover:bg-gray-100'>
-              1M
-            </button>
-            <button className='px-3 py-1 text-sm rounded-md text-gray-600 hover:bg-gray-100'>
-              3M
-            </button>
-            <button className='px-3 py-1 text-sm rounded-md text-gray-600 hover:bg-gray-100'>
-              1Y
+            <button
+              onClick={fetchPortfolioData}
+              className='px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700'
+            >
+              <RefreshCw className='w-4 h-4' />
             </button>
           </div>
         </div>
@@ -171,4 +257,6 @@ export default function PortfolioOverview({ portfolioData }) {
       </div>
     </div>
   );
-}
+});
+
+export default PortfolioOverview;
