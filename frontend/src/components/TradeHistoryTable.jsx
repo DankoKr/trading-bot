@@ -12,8 +12,6 @@ const TradeHistoryTable = forwardRef((props, ref) => {
 
   useEffect(() => {
     fetchTrades();
-    const interval = setInterval(fetchTrades, 10000);
-    return () => clearInterval(interval);
   }, []);
 
   const fetchTrades = async () => {

@@ -2,13 +2,14 @@ package dankok.trading212.auto_trading_bot.services;
 
 import dankok.trading212.auto_trading_bot.dtos.CryptoPriceResponse;
 import dankok.trading212.auto_trading_bot.dtos.HistoricalPriceResponse;
-import dankok.trading212.auto_trading_bot.repositories.CryptoRepository;
+import dankok.trading212.auto_trading_bot.repositories.CryptoPriceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
 public class CryptoDataService {
 
     private final RestClient coinGeckoRestClient;
-    private final CryptoRepository cryptoRepository;
+    private final CryptoPriceRepository cryptoPriceRepository;
     
     @Value("${coingecko.api.key:}")
     private String apiKey;
@@ -29,9 +30,9 @@ public class CryptoDataService {
     private static final long MIN_REQUEST_INTERVAL = 1000; // 1 second between requests for free tier
 
     @Autowired
-    public CryptoDataService(RestClient coinGeckoRestClient, CryptoRepository cryptoRepository) {
+    public CryptoDataService(RestClient coinGeckoRestClient, CryptoPriceRepository cryptoRepository) {
         this.coinGeckoRestClient = coinGeckoRestClient;
-        this.cryptoRepository = cryptoRepository;
+        this.cryptoPriceRepository = cryptoRepository;
     }
 
     public CryptoPriceResponse fetchPrices(String... coinIds) {
@@ -63,7 +64,7 @@ public class CryptoDataService {
                             prices.put(coinId, price);
                             
                             try {
-                                cryptoRepository.savePrice(coinId, price);
+                                cryptoPriceRepository.savePrice(coinId, price, LocalDateTime.now());
                             } catch (Exception e) {
                                 System.err.println("Failed to save price for " + coinId + ": " + e.getMessage());
                             }

@@ -10,7 +10,7 @@ const HoldingsTable = forwardRef((props, ref) => {
 
   useEffect(() => {
     fetchHoldings();
-    const interval = setInterval(fetchHoldings, 30000);
+    const interval = setInterval(fetchHoldings, 3000);
     return () => clearInterval(interval);
   }, []);
 

@@ -2,7 +2,7 @@ package dankok.trading212.auto_trading_bot.services;
 
 import dankok.trading212.auto_trading_bot.dtos.BacktestResult;
 import dankok.trading212.auto_trading_bot.dtos.TradeResult;
-import dankok.trading212.auto_trading_bot.enums.TradeAction;
+import dankok.trading212.auto_trading_bot.enums.TradeActionEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -44,14 +44,14 @@ public class BacktestService {
                     holdings = investAmount / currentPrice;
                     balance -= investAmount;
                     
-                    trades.add(new TradeResult(true, TradeAction.BUY.name(), holdings, currentPrice, investAmount,
+                    trades.add(new TradeResult(true, TradeActionEnum.BUY.name(), holdings, currentPrice, investAmount,
                         "Backtest buy executed"));
                 }
                 else if (shortSMA < longSMA && holdings > 0) {
                     double saleValue = holdings * currentPrice;
                     balance += saleValue;
                     
-                    trades.add(new TradeResult(true, TradeAction.SELL.name(), holdings, currentPrice, saleValue,
+                    trades.add(new TradeResult(true, TradeActionEnum.SELL.name(), holdings, currentPrice, saleValue,
                         "Backtest sell executed"));
                     holdings = 0;
                 }

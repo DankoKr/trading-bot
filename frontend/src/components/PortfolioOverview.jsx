@@ -5,7 +5,6 @@ import {
   TrendingDown,
   DollarSign,
   Activity,
-  Calendar,
   RefreshCw,
 } from 'lucide-react';
 import {
@@ -27,7 +26,7 @@ const PortfolioOverview = forwardRef((props, ref) => {
 
   useEffect(() => {
     fetchPortfolioData();
-    const interval = setInterval(fetchPortfolioData, 30000);
+    const interval = setInterval(fetchPortfolioData, 50000);
     return () => clearInterval(interval);
   }, []);
 
@@ -36,39 +35,22 @@ const PortfolioOverview = forwardRef((props, ref) => {
       setLoading(true);
       setError(null);
 
+      const balanceHistory = await ApiService.get('/user/balance/history');
+      setPortfolioData(
+        balanceHistory.map((entry) => ({
+          date: entry.timestamp.split('T')[0],
+          value: entry.balance,
+        }))
+      );
+
       const balance = await ApiService.getAccountBalance();
       setCurrentBalance(balance || 0);
-      const trades = await ApiService.getTradeHistory();
-
-      const portfolioHistory = generatePortfolioHistory(trades, balance);
-      setPortfolioData(portfolioHistory);
     } catch (error) {
       console.error('Failed to fetch portfolio data:', error);
       setError('Failed to load portfolio data');
     } finally {
       setLoading(false);
     }
-  };
-
-  const generatePortfolioHistory = (trades, currentBalance) => {
-    const initialBalance = 1000;
-    const data = [];
-
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-
-      const progress = (29 - i) / 29;
-      const value =
-        initialBalance + (currentBalance - initialBalance) * progress;
-
-      data.push({
-        date: date.toISOString().split('T')[0],
-        value: Math.max(0, value),
-      });
-    }
-
-    return data;
   };
 
   const currentValue =
@@ -171,13 +153,6 @@ const PortfolioOverview = forwardRef((props, ref) => {
           iconBg={totalReturn >= 0 ? 'bg-green-100' : 'bg-red-100'}
           valueClass={totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}
           subtitleClass={totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}
-        />
-        <MetricCard
-          title='Account Balance'
-          value={formatCurrency(currentBalance)}
-          subtitle='Available Cash'
-          icon={<Calendar className='w-6 h-6 text-purple-600' />}
-          iconBg='bg-purple-100'
         />
       </div>
 

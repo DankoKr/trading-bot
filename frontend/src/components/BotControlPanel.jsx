@@ -29,8 +29,6 @@ export default function BotControlPanel({ onStatusChange }) {
 
   useEffect(() => {
     fetchBotStatus();
-    const interval = setInterval(fetchBotStatus, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

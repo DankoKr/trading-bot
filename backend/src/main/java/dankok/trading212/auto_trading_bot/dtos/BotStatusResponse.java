@@ -1,16 +1,16 @@
 package dankok.trading212.auto_trading_bot.dtos;
 
-import dankok.trading212.auto_trading_bot.enums.BotStatus;
+import dankok.trading212.auto_trading_bot.enums.BotStatusEnum;
 import java.time.LocalDateTime;
 
 public class BotStatusResponse {
-    private BotStatus status;
+    private BotStatusEnum status;
     private LocalDateTime lastStatusChange;
     private String statusChangeReason;
     private String message;
     private boolean success;
 
-    public BotStatusResponse(BotStatus status, LocalDateTime lastStatusChange, 
+    public BotStatusResponse(BotStatusEnum status, LocalDateTime lastStatusChange, 
                            String statusChangeReason, String message, boolean success) {
         this.status = status;
         this.lastStatusChange = lastStatusChange;
@@ -19,8 +19,8 @@ public class BotStatusResponse {
         this.success = success;
     }
 
-    public BotStatus getStatus() { return status; }
-    public void setStatus(BotStatus status) { this.status = status; }
+    public BotStatusEnum getStatus() { return status; }
+    public void setStatus(BotStatusEnum status) { this.status = status; }
     public LocalDateTime getLastStatusChange() { return lastStatusChange; }
     public void setLastStatusChange(LocalDateTime lastStatusChange) { this.lastStatusChange = lastStatusChange; }
     public String getStatusChangeReason() { return statusChangeReason; }
