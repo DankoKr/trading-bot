@@ -178,7 +178,7 @@ export default function BotResultModal({ isOpen, onClose, result, title }) {
                 <div className='text-center p-3 bg-green-50 rounded-lg'>
                   <p className='text-sm text-green-600'>Final Value</p>
                   <p className='text-lg font-semibold text-green-900'>
-                    ${result.finalValue?.toFixed(2) || 'N/A'}
+                    ${result.finalBalance?.toFixed(2) || 'N/A'}
                   </p>
                 </div>
                 <div className='text-center p-3 bg-purple-50 rounded-lg'>
