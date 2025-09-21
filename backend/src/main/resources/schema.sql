@@ -85,23 +85,5 @@ ON DUPLICATE KEY UPDATE
     last_name = COALESCE(last_name, 'User'),
     is_active = COALESCE(is_active, TRUE);
 
-INSERT INTO holdings (user_id, symbol, quantity)
-VALUES 
-    (1, 'bitcoin', 0.25),
-    (1, 'ethereum', 2.5),
-    (1, 'solana', 100.0)
-ON DUPLICATE KEY UPDATE 
-    quantity = VALUES(quantity);
-
-INSERT INTO trades (timestamp, user_id, action, symbol, quantity, price, profit_loss)
-VALUES
-    (NOW() - INTERVAL 3 DAY, 1, 'BUY', 'bitcoin', 0.15, 60000.00, NULL),
-    (NOW() - INTERVAL 2 DAY, 1, 'BUY', 'bitcoin', 0.10, 65000.00, NULL),
-    (NOW() - INTERVAL 1 DAY, 1, 'BUY', 'ethereum', 2.0, 3500.00, NULL),
-    (NOW() - INTERVAL 1 DAY, 1, 'BUY', 'solana', 100.0, 150.00, NULL),
-    (NOW(), 1, 'BUY', 'ethereum', 0.5, 3700.00, NULL),
-    (NOW(), 1, 'SELL', 'bitcoin', 0.25, 70000.00, (70000.00 - ((0.15*60000.00 + 0.10*65000.00)/0.25)) * 0.25),
-    (NOW(), 1, 'SELL', 'ethereum', 2.5, 4000.00, (4000.00 - ((2.0*3500.00 + 0.5*3700.00)/2.5)) * 2.5)
-ON DUPLICATE KEY UPDATE
-    price = VALUES(price),
-    profit_loss = VALUES(profit_loss);
+INSERT INTO holdings (user_id, symbol, quantity) VALUES (1, 'bitcoin', 0.25)
+ON DUPLICATE KEY UPDATE quantity = VALUES(quantity);

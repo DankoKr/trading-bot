@@ -28,6 +28,12 @@ public class TradeExecutorService {
     @Transactional
     public TradeResult executeBuyTrade(int userId, String symbol, double currentPrice, double amountToInvest) {
         try {
+            Double currentBalance = userRepository.getUserBalance(userId);
+            if (currentBalance == null || currentBalance < amountToInvest) {
+                return new TradeResult(false, TradeActionEnum.BUY.name(), 0, currentPrice, 0, 
+                    "Insufficient balance for purchase");
+            }
+
             double quantity = amountToInvest / currentPrice;
 
             userRepository.updateUserBalance(userId, -amountToInvest);
@@ -60,7 +66,7 @@ public class TradeExecutorService {
             double profitLoss = (currentPrice - avgBuyPrice) * quantityToSell;
 
             userRepository.updateUserBalance(userId, saleValue);
-            holdingRepository.deleteHolding(userId, symbol);
+            holdingRepository.updateHolding(userId, symbol, -quantityToSell);
 
             tradeRepository.insertTradeWithProfitLoss(
                 userId,

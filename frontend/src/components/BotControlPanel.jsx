@@ -12,7 +12,7 @@ import BotResultModal from './BotResultModal';
 
 export default function BotControlPanel({ onStatusChange }) {
   const [botStatus, setBotStatus] = useState({
-    status: 'ACTIVE',
+    status: 'STOPPED',
     lastStatusChange: new Date(),
     statusChangeReason: 'Bot initialized',
     message: '',
@@ -20,7 +20,7 @@ export default function BotControlPanel({ onStatusChange }) {
   });
   const [loading, setLoading] = useState(false);
   const [selectedMode, setSelectedMode] = useState('TRADING');
-  const [selectedCoins, setSelectedCoins] = useState('bitcoin,ethereum,solana');
+  const [selectedCoins, setSelectedCoins] = useState('bitcoin');
   const [apiStatus, setApiStatus] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -269,7 +269,7 @@ export default function BotControlPanel({ onStatusChange }) {
                   type='text'
                   value={selectedCoins}
                   onChange={(e) => setSelectedCoins(e.target.value)}
-                  placeholder='bitcoin,ethereum,solana'
+                  placeholder='bitcoin'
                   className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                 />
               </div>

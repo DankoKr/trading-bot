@@ -1,12 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import MetricCard from './MetricCard';
-import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Activity,
-  RefreshCw,
-} from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,6 +14,7 @@ import ApiService from '../services/api';
 const PortfolioOverview = forwardRef((props, ref) => {
   const [portfolioData, setPortfolioData] = useState([]);
   const [currentBalance, setCurrentBalance] = useState(0);
+  const [totalPortfolioValue, setTotalPortfolioValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -36,15 +30,21 @@ const PortfolioOverview = forwardRef((props, ref) => {
       setError(null);
 
       const balanceHistory = await ApiService.get('/user/balance/history');
-      setPortfolioData(
-        balanceHistory.map((entry) => ({
-          date: entry.timestamp.split('T')[0],
-          value: entry.balance,
-        }))
-      );
 
-      const balance = await ApiService.getAccountBalance();
-      setCurrentBalance(balance || 0);
+      const chartData = balanceHistory.map((entry) => ({
+        date: entry.date,
+        value: parseFloat(entry.total_portfolio_value),
+        cashBalance: parseFloat(entry.cash_balance),
+        holdingsValue: parseFloat(entry.holdings_value),
+      }));
+
+      setPortfolioData(chartData);
+
+      if (chartData.length > 0) {
+        const latest = chartData[0];
+        setTotalPortfolioValue(latest.value);
+        setCurrentBalance(latest.cashBalance);
+      }
     } catch (error) {
       console.error('Failed to fetch portfolio data:', error);
       setError('Failed to load portfolio data');
@@ -52,24 +52,6 @@ const PortfolioOverview = forwardRef((props, ref) => {
       setLoading(false);
     }
   };
-
-  const currentValue =
-    portfolioData.length > 0
-      ? portfolioData[portfolioData.length - 1]?.value || 0
-      : currentBalance;
-  const previousValue =
-    portfolioData.length > 1
-      ? portfolioData[portfolioData.length - 2]?.value || 0
-      : currentBalance;
-  const dailyChange = currentValue - previousValue;
-  const dailyChangePercent =
-    previousValue !== 0 ? (dailyChange / previousValue) * 100 : 0;
-
-  const initialValue =
-    portfolioData.length > 0 ? portfolioData[0]?.value || 1000 : 1000;
-  const totalReturn = currentValue - initialValue;
-  const totalReturnPercent =
-    initialValue !== 0 ? (totalReturn / initialValue) * 100 : 0;
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -80,8 +62,11 @@ const PortfolioOverview = forwardRef((props, ref) => {
     }).format(amount);
   };
 
-  const formatPercent = (percent) => {
-    return `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
+  const calculatePercentageChange = () => {
+    if (portfolioData.length < 2) return 0;
+    const latest = portfolioData[0].value;
+    const previous = portfolioData[portfolioData.length - 1].value;
+    return ((latest - previous) / previous) * 100;
   };
 
   useImperativeHandle(ref, () => ({
@@ -115,52 +100,34 @@ const PortfolioOverview = forwardRef((props, ref) => {
     );
   }
 
-  return (
-    <div className='space-y-6'>
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-        <MetricCard
-          title='Portfolio Value'
-          value={formatCurrency(currentValue)}
-          icon={<DollarSign className='w-6 h-6 text-blue-600' />}
-          iconBg='bg-blue-100'
-        />
-        <MetricCard
-          title='Daily Change'
-          value={formatCurrency(dailyChange)}
-          subtitle={formatPercent(dailyChangePercent)}
-          icon={
-            dailyChange >= 0 ? (
-              <TrendingUp className='w-6 h-6 text-green-600' />
-            ) : (
-              <TrendingDown className='w-6 h-6 text-red-600' />
-            )
-          }
-          iconBg={dailyChange >= 0 ? 'bg-green-100' : 'bg-red-100'}
-          valueClass={dailyChange >= 0 ? 'text-green-600' : 'text-red-600'}
-          subtitleClass={dailyChange >= 0 ? 'text-green-600' : 'text-red-600'}
-        />
-        <MetricCard
-          title='Total Return'
-          value={formatCurrency(totalReturn)}
-          subtitle={formatPercent(totalReturnPercent)}
-          icon={
-            <Activity
-              className={`w-6 h-6 ${
-                totalReturn >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
-            />
-          }
-          iconBg={totalReturn >= 0 ? 'bg-green-100' : 'bg-red-100'}
-          valueClass={totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}
-          subtitleClass={totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}
-        />
-      </div>
+  const percentageChange = calculatePercentageChange();
+  const isPositive = percentageChange >= 0;
 
+  return (
+    <div>
       <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
         <div className='flex justify-between items-center mb-6'>
-          <h2 className='text-xl font-semibold text-gray-900'>
-            Portfolio Performance
-          </h2>
+          <div>
+            <h2 className='text-xl font-semibold text-gray-900'>
+              Portfolio Performance
+            </h2>
+            <div className='flex items-center gap-4 mt-2'>
+              <div className='text-2xl font-bold text-gray-900'>
+                {formatCurrency(totalPortfolioValue)}
+              </div>
+              <div
+                className={`flex items-center text-sm ${
+                  isPositive ? 'text-green-600' : 'text-red-600'
+                }`}
+              >
+                <span>
+                  {isPositive ? '+' : ''}
+                  {percentageChange.toFixed(2)}%
+                </span>
+                <span className='ml-1 text-gray-500'>10 days</span>
+              </div>
+            </div>
+          </div>
           <div className='flex gap-2'>
             <button
               onClick={fetchPortfolioData}
@@ -171,9 +138,27 @@ const PortfolioOverview = forwardRef((props, ref) => {
           </div>
         </div>
 
+        {/* Portfolio breakdown */}
+        <div className='grid grid-cols-2 gap-4 mb-6'>
+          <div className='bg-gray-50 p-3 rounded-lg'>
+            <div className='text-sm text-gray-600'>Cash Balance</div>
+            <div className='text-lg font-semibold text-gray-900'>
+              {formatCurrency(currentBalance)}
+            </div>
+          </div>
+          <div className='bg-gray-50 p-3 rounded-lg'>
+            <div className='text-sm text-gray-600'>Holdings Value</div>
+            <div className='text-lg font-semibold text-gray-900'>
+              {formatCurrency(totalPortfolioValue - currentBalance)}
+            </div>
+          </div>
+        </div>
+
         <div className='h-80'>
           <ResponsiveContainer width='100%' height='100%'>
-            <AreaChart data={portfolioData}>
+            <AreaChart data={portfolioData.slice().reverse()}>
+              {' '}
+              {/* Reverse for chronological order */}
               <defs>
                 <linearGradient id='valueGradient' x1='0' y1='0' x2='0' y2='1'>
                   <stop offset='5%' stopColor='#3B82F6' stopOpacity={0.1} />
@@ -206,10 +191,15 @@ const PortfolioOverview = forwardRef((props, ref) => {
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                 }}
-                formatter={(value, name) => [
-                  formatCurrency(value),
-                  'Portfolio Value',
-                ]}
+                formatter={(value, name) => {
+                  if (name === 'value')
+                    return [formatCurrency(value), 'Total Portfolio'];
+                  if (name === 'cashBalance')
+                    return [formatCurrency(value), 'Cash Balance'];
+                  if (name === 'holdingsValue')
+                    return [formatCurrency(value), 'Holdings Value'];
+                  return [formatCurrency(value), name];
+                }}
                 labelFormatter={(date) =>
                   new Date(date).toLocaleDateString('en-US', {
                     weekday: 'short',
@@ -218,6 +208,48 @@ const PortfolioOverview = forwardRef((props, ref) => {
                     year: 'numeric',
                   })
                 }
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className='bg-white p-3 border border-gray-200 rounded-lg shadow-lg'>
+                        <p className='text-sm text-gray-600 mb-2'>
+                          {new Date(label).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </p>
+                        <div className='space-y-1'>
+                          <div className='flex justify-between items-center'>
+                            <span className='text-sm text-gray-600'>
+                              Total Portfolio:
+                            </span>
+                            <span className='font-semibold'>
+                              {formatCurrency(data.value)}
+                            </span>
+                          </div>
+                          <div className='flex justify-between items-center'>
+                            <span className='text-sm text-gray-600'>Cash:</span>
+                            <span className='text-sm'>
+                              {formatCurrency(data.cashBalance)}
+                            </span>
+                          </div>
+                          <div className='flex justify-between items-center'>
+                            <span className='text-sm text-gray-600'>
+                              Holdings:
+                            </span>
+                            <span className='text-sm'>
+                              {formatCurrency(data.holdingsValue)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <Area
                 type='monotone'

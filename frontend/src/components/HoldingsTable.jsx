@@ -10,7 +10,7 @@ const HoldingsTable = forwardRef((props, ref) => {
 
   useEffect(() => {
     fetchHoldings();
-    const interval = setInterval(fetchHoldings, 3000);
+    const interval = setInterval(fetchHoldings, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -91,74 +91,6 @@ const HoldingsTable = forwardRef((props, ref) => {
 
   return (
     <div className='space-y-6'>
-      {portfolioSummary && (
-        <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-          <div className='bg-white p-4 rounded-lg shadow-sm border border-gray-200'>
-            <div className='flex items-center'>
-              <div className='p-2 bg-blue-100 rounded-lg'>
-                <DollarSign className='w-6 h-6 text-blue-600' />
-              </div>
-              <div className='ml-4'>
-                <h3 className='text-sm font-medium text-gray-500'>
-                  Cash Balance
-                </h3>
-                <p className='text-xl font-semibold text-gray-900'>
-                  {formatCurrency(portfolioSummary.cash_balance)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className='bg-white p-4 rounded-lg shadow-sm border border-gray-200'>
-            <div className='flex items-center'>
-              <div className='p-2 bg-green-100 rounded-lg'>
-                <TrendingUp className='w-6 h-6 text-green-600' />
-              </div>
-              <div className='ml-4'>
-                <h3 className='text-sm font-medium text-gray-500'>
-                  Holdings Value
-                </h3>
-                <p className='text-xl font-semibold text-gray-900'>
-                  {formatCurrency(portfolioSummary.holdings_value)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className='bg-white p-4 rounded-lg shadow-sm border border-gray-200'>
-            <div className='flex items-center'>
-              <div className='p-2 bg-purple-100 rounded-lg'>
-                <TrendingUp className='w-6 h-6 text-purple-600' />
-              </div>
-              <div className='ml-4'>
-                <h3 className='text-sm font-medium text-gray-500'>
-                  Total Portfolio
-                </h3>
-                <p className='text-xl font-semibold text-gray-900'>
-                  {formatCurrency(portfolioSummary.total_portfolio_value)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className='bg-white p-4 rounded-lg shadow-sm border border-gray-200'>
-            <div className='flex items-center'>
-              <div className='p-2 bg-yellow-100 rounded-lg'>
-                <TrendingDown className='w-6 h-6 text-yellow-600' />
-              </div>
-              <div className='ml-4'>
-                <h3 className='text-sm font-medium text-gray-500'>
-                  Holdings Count
-                </h3>
-                <p className='text-xl font-semibold text-gray-900'>
-                  {portfolioSummary.holdings_count}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
         <div className='flex justify-between items-center mb-6'>
           <h2 className='text-xl font-semibold text-gray-900'>

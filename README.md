@@ -1,5 +1,5 @@
 Data Fetching:
-GET /prices?coins=bitcoin,ethereum // Current prices
+GET /prices?coins=bitcoin // Current prices
 GET /historical/bitcoin?days=30 // Historical data
 
 Trading Operations:  

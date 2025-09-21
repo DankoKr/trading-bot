@@ -5,6 +5,8 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -96,11 +98,11 @@ public class UserRepository {
         }
     }
 
-    public void updateUserBalance(int userId, double newBalance) {
+    public void updateUserBalance(int userId, double amount) {
         jdbcTemplate.update(
-                "UPDATE users SET balance = ? WHERE id = ?",
-                newBalance,
-                userId);
+            "UPDATE users SET balance = balance + ? WHERE id = ?",
+            amount,
+            userId);
     }
     
     public List<Map<String, Object>> getUserHoldings(int userId) {
@@ -124,28 +126,57 @@ public class UserRepository {
     }
     
     
-    public List<Map<String, Object>> getUserBalanceHistory(int userId) {
-        String sql = """
+  public List<Map<String, Object>> getUserBalanceHistory(int userId) {
+    String sql = """
+        WITH RECURSIVE date_series AS (
+            SELECT DATE(NOW()) as date_value
+            UNION ALL
+            SELECT DATE(date_value - INTERVAL 1 DAY)
+            FROM date_series
+            WHERE date_value > DATE(NOW() - INTERVAL 9 DAY)
+        ),
+        daily_portfolio AS (
             SELECT 
-                t.timestamp,
-                SUM(
-                    CASE 
-                        WHEN t.action = 'BUY' THEN -t.price * t.quantity
-                        WHEN t.action = 'SELL' THEN t.price * t.quantity
-                        ELSE 0
-                    END
-                ) OVER (ORDER BY t.timestamp ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + u.balance AS balance
-            FROM trades t
-            JOIN users u ON u.id = t.user_id
-            WHERE t.user_id = ?
-            ORDER BY t.timestamp
+                ds.date_value as date,
+                u.balance as cash_balance,
+                COALESCE(SUM(
+                    h.quantity * COALESCE(
+                        (SELECT cp.price 
+                         FROM crypto_prices cp 
+                         WHERE cp.symbol = h.symbol 
+                         AND DATE(cp.timestamp) <= ds.date_value 
+                         ORDER BY cp.timestamp DESC 
+                         LIMIT 1), 
+                        0
+                    )
+                ), 0) as holdings_value
+            FROM date_series ds
+            CROSS JOIN users u
+            LEFT JOIN holdings h ON h.user_id = u.id AND h.quantity > 0
+            WHERE u.id = ?
+            GROUP BY ds.date_value, u.balance
+        )
+        SELECT 
+            date,
+            cash_balance,
+            holdings_value,
+            (cash_balance + holdings_value) as total_portfolio_value
+        FROM daily_portfolio
+        ORDER BY date DESC
         """;
-        return jdbcTemplate.queryForList(sql, userId);
-    }
+    
+    return jdbcTemplate.queryForList(sql, userId);
+}
     
     public boolean resetUser(int userId, double initialBalance) {
         try {
             jdbcTemplate.update("UPDATE users SET balance = ? WHERE id = ?", initialBalance, userId);
+
+            jdbcTemplate.update("DELETE FROM trades WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM holdings WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM crypto_prices WHERE symbol IN ('bitcoin')");
+
+            jdbcTemplate.update("INSERT INTO holdings (user_id, symbol, quantity) VALUES (?, 'bitcoin', 0.25)", userId);
             return true;
         } catch (Exception e) {
             return false;

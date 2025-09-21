@@ -26,7 +26,7 @@ public class PriceController {
     }
 
     @GetMapping
-    public CryptoPriceResponse getCurrentPrices(@RequestParam(defaultValue = "bitcoin,ethereum,solana") String coins, HttpServletRequest request) {
+    public CryptoPriceResponse getCurrentPrices(@RequestParam(defaultValue = "bitcoin") String coins, HttpServletRequest request) {
         Integer userId = getCurrentUserId(request);
         if (userId == null) {
             return new CryptoPriceResponse(false, new HashMap<>(), "Authentication required");

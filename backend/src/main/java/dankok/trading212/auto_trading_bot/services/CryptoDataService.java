@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,10 +24,6 @@ public class CryptoDataService {
     @Value("${coingecko.api.key:}")
     private String apiKey;
     
-    // Cache to avoid hitting rate limits
-    private final Map<String, Long> lastRequestTime = new ConcurrentHashMap<>();
-    private static final long MIN_REQUEST_INTERVAL = 1000; // 1 second between requests for free tier
-
     @Autowired
     public CryptoDataService(RestClient coinGeckoRestClient, CryptoPriceRepository cryptoRepository) {
         this.coinGeckoRestClient = coinGeckoRestClient;
@@ -36,18 +31,10 @@ public class CryptoDataService {
     }
 
     public CryptoPriceResponse fetchPrices(String... coinIds) {
-        String ids = String.join(",", coinIds);
-        String cacheKey = "prices_" + ids;
-        
-        if (!canMakeRequest(cacheKey)) {
-            return new CryptoPriceResponse(false, Map.of(), "Rate limit exceeded. Please wait before making another request.");
-        }
-        
+        String ids = String.join(",", coinIds);        
         String relativeUrl = String.format("/simple/price?ids=%s&vs_currencies=usd", ids);
         
         try {
-            updateLastRequestTime(cacheKey);
-            
             Map<?, ?> response = coinGeckoRestClient.get()
                     .uri(relativeUrl)
                     .retrieve()
@@ -91,19 +78,10 @@ public class CryptoDataService {
         }
     }
 
-    public HistoricalPriceResponse fetchHistoricalPricesWithMetadata(String coinId, int days) {
-        String cacheKey = "historical_" + coinId + "_" + days;
-        
-        if (!canMakeRequest(cacheKey)) {
-            return new HistoricalPriceResponse(false, coinId, List.of(), days, 0, 
-                "Rate limit exceeded. Please wait before making another request.");
-        }
-        
+    public HistoricalPriceResponse fetchHistoricalPricesWithMetadata(String coinId, int days) {        
         String relativeUrl = String.format("/coins/%s/market_chart?vs_currency=usd&days=%d", coinId, days);
         
-        try {
-            updateLastRequestTime(cacheKey);
-            
+        try {            
             Map<?, ?> response = coinGeckoRestClient.get()
                     .uri(relativeUrl)
                     .retrieve()
@@ -157,25 +135,7 @@ public class CryptoDataService {
         HistoricalPriceResponse response = fetchHistoricalPricesWithMetadata(coinId, requiredDays);
         return response.isSuccess() && response.getActualDays() >= requiredDays;
     }
-    
-    private boolean canMakeRequest(String cacheKey) {
-        Long lastTime = lastRequestTime.get(cacheKey);
-        if (lastTime == null) {
-            return true;
-        }
-        
-        long timeSinceLastRequest = System.currentTimeMillis() - lastTime;
-        
-        // If using API key (pro), allow more frequent requests
-        long minInterval = (apiKey != null && !apiKey.isEmpty()) ? 100 : MIN_REQUEST_INTERVAL;
-        
-        return timeSinceLastRequest >= minInterval;
-    }
-    
-    private void updateLastRequestTime(String cacheKey) {
-        lastRequestTime.put(cacheKey, System.currentTimeMillis());
-    }
-    
+            
     public boolean isUsingApiKey() {
         return apiKey != null && !apiKey.isEmpty();
     }

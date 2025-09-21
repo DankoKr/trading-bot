@@ -58,7 +58,7 @@ public class BotController {
 
     @PostMapping("/run")
     public TradingAnalysisResult runBot(
-            @RequestParam(defaultValue = "bitcoin,ethereum,solana") String coins,
+            @RequestParam(defaultValue = "bitcoin") String coins,
             @RequestParam(defaultValue = "TRADING") String mode,
             HttpServletRequest request) {
         Integer userId = getCurrentUserId(request);
@@ -176,7 +176,7 @@ public class BotController {
 
     @PostMapping("/historical-training")
     public TradingAnalysisResult runHistoricalTraining(
-            @RequestParam(defaultValue = "bitcoin,ethereum") String coins,
+            @RequestParam(defaultValue = "bitcoin") String coins,
             @RequestParam(defaultValue = "365") int days,
             HttpServletRequest request) {
         Integer userId = getCurrentUserId(request);

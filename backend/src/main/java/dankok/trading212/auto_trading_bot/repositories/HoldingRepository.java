@@ -42,7 +42,7 @@ public class HoldingRepository {
 
     public void updateHolding(int userId, String symbol, double quantity) {
         int rowsAffected = jdbcTemplate.update(
-            "UPDATE holdings SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND symbol = ?",
+            "UPDATE holdings SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND symbol = ?",
             quantity, userId, symbol
         );
         

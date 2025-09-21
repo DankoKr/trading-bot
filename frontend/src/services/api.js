@@ -160,11 +160,11 @@ class ApiService {
   }
 
   // Trading Methods
-  async runBot(coins = 'bitcoin,ethereum,solana', mode = 'TRADING') {
+  async runBot(coins = 'bitcoin', mode = 'TRADING') {
     return this.post(`/bot/run?coins=${coins}&mode=${mode}`);
   }
 
-  async runHistoricalTraining(coins = 'bitcoin,ethereum', days = 365) {
+  async runHistoricalTraining(coins = 'bitcoin', days = 365) {
     return this.post(`/bot/historical-training?coins=${coins}&days=${days}`);
   }
 
@@ -187,7 +187,7 @@ class ApiService {
     return this.get('/user/trades');
   }
 
-  async getCurrentPrices(coins = 'bitcoin,ethereum,solana') {
+  async getCurrentPrices(coins = 'bitcoin') {
     return this.get(`/prices?coins=${coins}`);
   }
 
